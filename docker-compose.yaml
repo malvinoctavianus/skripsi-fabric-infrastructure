@@ -4,10 +4,12 @@ networks:
   efishery_network:
     name: fabric_network
 
+volumes:
+  peer0.org1.example.com:
+  peer0.org2.example.com:
+  peer0.org3.example.com:
+
 services:
-  # ==========================================
-  # ORDERING SERVICE
-  # ==========================================
   orderer.example.com:
     container_name: orderer.example.com
     image: hyperledger/fabric-orderer:latest
@@ -19,7 +21,6 @@ services:
       - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/fabric/msp
       - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
       - ORDERER_GENERAL_BOOTSTRAPFILE=/etc/hyperledger/fabric/genesis.block
-      # --- KONFIGURASI KEAMANAN TLS (WAJIB UNTUK RAFT) ---
       - ORDERER_GENERAL_TLS_ENABLED=true
       - ORDERER_GENERAL_TLS_PRIVATEKEY=/etc/hyperledger/fabric/tls/server.key
       - ORDERER_GENERAL_TLS_CERTIFICATE=/etc/hyperledger/fabric/tls/server.crt
@@ -32,14 +33,10 @@ services:
     volumes:
       - ./config/genesis.block:/etc/hyperledger/fabric/genesis.block
       - ./crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/etc/hyperledger/fabric/msp
-      # --- PIPA PENYALUR SERTIFIKAT TLS ---
       - ./crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/:/etc/hyperledger/fabric/tls
     networks:
       - efishery_network
 
-  # ==========================================
-  # ORG 1: SUPPLIER / PURCHASING
-  # ==========================================
   couchdb0:
     container_name: couchdb0
     image: couchdb:3.3
@@ -65,18 +62,19 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb0:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      # --- SOLUSI FINAL WINDOWS: MENGGUNAKAN JALUR TCP ---
+      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
     ports:
       - "7051:7051"
     volumes:
       - ./crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.org1.example.com:/var/hyperledger/production
     depends_on:
       - couchdb0
     networks:
       - efishery_network
 
-  # ==========================================
-  # ORG 2: FINANCE
-  # ==========================================
   couchdb1:
     container_name: couchdb1
     image: couchdb:3.3
@@ -102,18 +100,19 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb1:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      # --- SOLUSI FINAL WINDOWS: MENGGUNAKAN JALUR TCP ---
+      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
     ports:
       - "9051:9051"
     volumes:
       - ./crypto-config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.org2.example.com:/var/hyperledger/production
     depends_on:
       - couchdb1
     networks:
       - efishery_network
 
-  # ==========================================
-  # ORG 3: MANAGEMENT (MANAGER & INVESTOR)
-  # ==========================================
   couchdb2:
     container_name: couchdb2
     image: couchdb:3.3
@@ -139,10 +138,14 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb2:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
+      # --- SOLUSI FINAL WINDOWS: MENGGUNAKAN JALUR TCP ---
+      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
     ports:
       - "11051:11051"
     volumes:
       - ./crypto-config/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/msp:/etc/hyperledger/fabric/msp
+      - ./crypto-config/peerOrganizations/org3.example.com/peers/peer0.org3.example.com/tls:/etc/hyperledger/fabric/tls
+      - peer0.org3.example.com:/var/hyperledger/production
     depends_on:
       - couchdb2
     networks:
