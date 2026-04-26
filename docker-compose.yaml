@@ -1,15 +1,16 @@
 version: '3.7'
-
 networks:
   efishery_network:
     name: fabric_network
-
 volumes:
   peer0.org1.example.com:
   peer0.org2.example.com:
   peer0.org3.example.com:
 
 services:
+  # ==========================================
+  # ORDERING SERVICE
+  # ==========================================
   orderer.example.com:
     container_name: orderer.example.com
     image: hyperledger/fabric-orderer:latest
@@ -37,6 +38,9 @@ services:
     networks:
       - efishery_network
 
+  # ==========================================
+  # ORG 1: SUPPLIER / PURCHASING
+  # ==========================================
   couchdb0:
     container_name: couchdb0
     image: couchdb:3.3
@@ -52,6 +56,7 @@ services:
     container_name: peer0.org1.example.com
     image: hyperledger/fabric-peer:latest
     environment:
+      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
       - FABRIC_LOGGING_SPEC=INFO
       - CORE_PEER_ID=peer0.org1.example.com
       - CORE_PEER_ADDRESS=peer0.org1.example.com:7051
@@ -62,8 +67,11 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb0:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
-      # --- SOLUSI FINAL WINDOWS: MENGGUNAKAN JALUR TCP ---
-      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
+      # --- KUNCI TLS PEER ---
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
     ports:
       - "7051:7051"
     volumes:
@@ -75,6 +83,9 @@ services:
     networks:
       - efishery_network
 
+  # ==========================================
+  # ORG 2: FINANCE
+  # ==========================================
   couchdb1:
     container_name: couchdb1
     image: couchdb:3.3
@@ -90,6 +101,7 @@ services:
     container_name: peer0.org2.example.com
     image: hyperledger/fabric-peer:latest
     environment:
+      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
       - FABRIC_LOGGING_SPEC=INFO
       - CORE_PEER_ID=peer0.org2.example.com
       - CORE_PEER_ADDRESS=peer0.org2.example.com:9051
@@ -100,8 +112,11 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb1:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
-      # --- SOLUSI FINAL WINDOWS: MENGGUNAKAN JALUR TCP ---
-      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
+      # --- KUNCI TLS PEER ---
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
     ports:
       - "9051:9051"
     volumes:
@@ -113,6 +128,9 @@ services:
     networks:
       - efishery_network
 
+  # ==========================================
+  # ORG 3: MANAGEMENT (MANAGER & INVESTOR)
+  # ==========================================
   couchdb2:
     container_name: couchdb2
     image: couchdb:3.3
@@ -128,6 +146,7 @@ services:
     container_name: peer0.org3.example.com
     image: hyperledger/fabric-peer:latest
     environment:
+      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
       - FABRIC_LOGGING_SPEC=INFO
       - CORE_PEER_ID=peer0.org3.example.com
       - CORE_PEER_ADDRESS=peer0.org3.example.com:11051
@@ -138,8 +157,11 @@ services:
       - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb2:5984
       - CORE_LEDGER_STATE_COUCHDBCONFIG_USERNAME=admin
       - CORE_LEDGER_STATE_COUCHDBCONFIG_PASSWORD=adminpw
-      # --- SOLUSI FINAL WINDOWS: MENGGUNAKAN JALUR TCP ---
-      - CORE_VM_ENDPOINT=tcp://host.docker.internal:2375
+      # --- KUNCI TLS PEER ---
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/etc/hyperledger/fabric/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/fabric/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/fabric/tls/ca.crt
     ports:
       - "11051:11051"
     volumes:
