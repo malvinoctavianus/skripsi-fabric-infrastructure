@@ -3,40 +3,33 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
-// SmartContract defines the Smart Contract structure
+// SmartContract defines the smart contract structure
 type SmartContract struct {
 	contractapi.Contract
 }
 
-// Invoice defines the data structure for an invoice
+// Invoice defines the structure for an invoice
 type Invoice struct {
-	ID       string `json:"id"`
-	Supplier string `json:"supplier"`
-	Amount   int    `json:"amount"`
-	Status   string `json:"status"` // Status: "Uploaded", "Verified", "Approved"
-	Uploader string `json:"uploader"`
+	ID      string `json:"id"`
+	Tanggal string `json:"tanggal"`
+	Nominal string `json:"nominal"`
+	Pemasok string `json:"pemasok"`
+	Status  string `json:"status"` // Uploaded, Verified, Approved
 }
 
-// UploadInvoice (Purchasing): Menambahkan invoice baru ke dalam blockchain
-func (s *SmartContract) UploadInvoice(ctx contractapi.TransactionContextInterface, id string, supplier string, amount int, uploader string) error {
-	exists, err := s.InvoiceExists(ctx, id)
-	if err != nil {
-		return err
-	}
-	if exists {
-		return fmt.Errorf("invoice dengan ID %s sudah ada", id)
-	}
-
+// UploadInvoice - Called by Purchasing
+func (s *SmartContract) UploadInvoice(ctx contractapi.TransactionContextInterface, id string, tanggal string, nominal string, pemasok string) error {
 	invoice := Invoice{
-		ID:       id,
-		Supplier: supplier,
-		Amount:   amount,
-		Status:   "Uploaded",
-		Uploader: uploader,
+		ID:      id,
+		Tanggal: tanggal,
+		Nominal: nominal,
+		Pemasok: pemasok,
+		Status:  "Uploaded",
 	}
 
 	invoiceJSON, err := json.Marshal(invoice)
@@ -47,54 +40,72 @@ func (s *SmartContract) UploadInvoice(ctx contractapi.TransactionContextInterfac
 	return ctx.GetStub().PutState(id, invoiceJSON)
 }
 
-// VerifyInvoice (Finance): Mengubah status invoice menjadi "Verified"
+// VerifyInvoice - Called by Finance
 func (s *SmartContract) VerifyInvoice(ctx contractapi.TransactionContextInterface, id string) error {
-	invoice, err := s.QueryInvoice(ctx, id)
+	invoiceJSON, err := ctx.GetStub().GetState(id)
+	if err != nil {
+		return fmt.Errorf("Gagal membaca dari blockchain: %v", err)
+	}
+	if invoiceJSON == nil {
+		return fmt.Errorf("Invoice %s tidak ditemukan", id)
+	}
+
+	var invoice Invoice
+	err = json.Unmarshal(invoiceJSON, &invoice)
 	if err != nil {
 		return err
 	}
 
 	if invoice.Status != "Uploaded" {
-		return fmt.Errorf("invoice %s tidak bisa diverifikasi, status saat ini: %s", id, invoice.Status)
+		return fmt.Errorf("Invoice %s tidak dalam status Uploaded. Status saat ini: %s", id, invoice.Status)
 	}
 
 	invoice.Status = "Verified"
-	invoiceJSON, err := json.Marshal(invoice)
+	updatedInvoiceJSON, err := json.Marshal(invoice)
 	if err != nil {
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, invoiceJSON)
+	return ctx.GetStub().PutState(id, updatedInvoiceJSON)
 }
 
-// ApproveInvoice (Manager): Mengubah status invoice menjadi "Approved"
+// ApproveInvoice - Called by Manager
 func (s *SmartContract) ApproveInvoice(ctx contractapi.TransactionContextInterface, id string) error {
-	invoice, err := s.QueryInvoice(ctx, id)
+	invoiceJSON, err := ctx.GetStub().GetState(id)
+	if err != nil {
+		return fmt.Errorf("Gagal membaca dari blockchain: %v", err)
+	}
+	if invoiceJSON == nil {
+		return fmt.Errorf("Invoice %s tidak ditemukan", id)
+	}
+
+	var invoice Invoice
+	err = json.Unmarshal(invoiceJSON, &invoice)
 	if err != nil {
 		return err
 	}
 
 	if invoice.Status != "Verified" {
-		return fmt.Errorf("invoice %s tidak bisa di-approve, status saat ini: %s", id, invoice.Status)
+		return fmt.Errorf("Invoice %s belum diverifikasi oleh Finance. Status saat ini: %s", id, invoice.Status)
 	}
 
 	invoice.Status = "Approved"
-	invoiceJSON, err := json.Marshal(invoice)
+	updatedInvoiceJSON, err := json.Marshal(invoice)
 	if err != nil {
 		return err
 	}
 
-	return ctx.GetStub().PutState(id, invoiceJSON)
+	return ctx.GetStub().PutState(id, updatedInvoiceJSON)
 }
 
-// QueryInvoice (Investor/Global): Membaca data invoice dari ledger
+// QueryInvoice - Called by Investor (Read-Only)
 func (s *SmartContract) QueryInvoice(ctx contractapi.TransactionContextInterface, id string) (*Invoice, error) {
 	invoiceJSON, err := ctx.GetStub().GetState(id)
 	if err != nil {
-		return nil, fmt.Errorf("gagal membaca data dari world state: %v", err)
+		return nil, fmt.Errorf("Gagal membaca dari blockchain: %v", err)
 	}
 	if invoiceJSON == nil {
-		return nil, fmt.Errorf("invoice %s tidak ditemukan", id)
+		return nil, fmt.Errorf("Invoice %s tidak ditemukan", id)
 	}
 
 	var invoice Invoice
@@ -106,23 +117,13 @@ func (s *SmartContract) QueryInvoice(ctx contractapi.TransactionContextInterface
 	return &invoice, nil
 }
 
-// InvoiceExists: Fungsi bantuan untuk mengecek ketersediaan data
-func (s *SmartContract) InvoiceExists(ctx contractapi.TransactionContextInterface, id string) (bool, error) {
-	invoiceJSON, err := ctx.GetStub().GetState(id)
-	if err != nil {
-		return false, fmt.Errorf("gagal membaca data dari world state: %v", err)
-	}
-	return invoiceJSON != nil, nil
-}
-
 func main() {
-	chaincode, err := contractapi.NewChaincode(new(SmartContract))
+	chaincode, err := contractapi.NewChaincode(&SmartContract{})
 	if err != nil {
-		fmt.Printf("Error create eFishery chaincode: %s", err.Error())
-		return
+		log.Panicf("Error creating eFishery chaincode: %v", err)
 	}
 
 	if err := chaincode.Start(); err != nil {
-		fmt.Printf("Error starting eFishery chaincode: %s", err.Error())
+		log.Panicf("Error starting eFishery chaincode: %v", err)
 	}
 }
